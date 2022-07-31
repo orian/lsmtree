@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/slices"
 )
 
 type Value interface {
@@ -125,6 +126,9 @@ const KMinFileSize = 100
 func (l *LSMTree[Key]) Insert(k Key, v Value) error {
 	l.v = append(l.v, Record[Key]{k, v})
 	sort.Sort(ValueStore[Key](l.v))
+	slices.SortFunc[Record[Key]](l.v, func(a, b Record[Key]) bool {
+		return a.K < b.K
+	})
 
 	if len(l.v) > KMinFileSize {
 		if err := l.SaveData(); err != nil {

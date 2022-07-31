@@ -10,7 +10,11 @@ import (
 func TestWriteReadData(t *testing.T) {
 	want := []Record[int]{
 		{
-			K: 10,
+			K: 11,
+			V: nil,
+		},
+		{
+			K: 23,
 			V: nil,
 		},
 	}
