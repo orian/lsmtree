@@ -1,3 +1,4 @@
+// Package lsmstore implements a simple LSM tree in memory with a file storage for a data when changes exceeds a size.
 package lsmstore
 
 import (
@@ -51,12 +52,13 @@ func (v ValueStore[Key]) Swap(i, j int) {
 
 type ByteSize uint64
 
+// FileDescriptor describes data file on disk
 type FileDescriptor[Key KeyType] struct {
-	RecordsNum uint64
-	SizeBytes  ByteSize
+	RecordsNum uint64   // number of records
+	SizeBytes  ByteSize // size of the file in bytes
 
-	KeySize   ByteSize
-	ValueSize ByteSize
+	KeySize   ByteSize // size of the key in bytes
+	ValueSize ByteSize // size of the value in bytes
 
 	RawKeySize   ByteSize
 	RawValueSize ByteSize
@@ -82,13 +84,16 @@ func WriteData[Key KeyType](dataPath, metaPath string, data []Record[Key]) error
 		// First:        nil,
 		// Last:         nil,
 	}
-	if err := enc.Encode(meta.RecordsNum); err != nil {
+	if err := enc.Encode(meta); err != nil {
 		return err
 	}
 	for _, v := range data {
 		if err := enc.Encode(v.K); err != nil {
 			return err
 		}
+		//if err := enc.Encode(v.V); err != nil {
+		//	return err
+		//}
 	}
 	return f.Close()
 }
@@ -102,9 +107,11 @@ func ReadData[Key KeyType](filePath string) ([]Record[Key], error) {
 	defer f.Close()
 	dec := gob.NewDecoder(f)
 	var numRecords uint64
-	if err = dec.Decode(&numRecords); err != nil {
+	meta := FileDescriptor[Key]{}
+	if err = dec.Decode(&meta); err != nil {
 		return nil, err
 	}
+	numRecords = meta.RecordsNum
 	ret := make([]Record[Key], 0, numRecords)
 	// var rec Record[Key]
 	var key Key
@@ -117,6 +124,7 @@ func ReadData[Key KeyType](filePath string) ([]Record[Key], error) {
 	return ret, nil
 }
 
+// LSMTree is a simple in-memory log structured merge tree.
 type LSMTree[Key KeyType] struct {
 	v []Record[Key]
 }
@@ -157,7 +165,7 @@ func (l *LSMTree[Key]) SaveData() error {
 
 type FullLSMTree[Key KeyType] struct {
 	Changes LSMTree[Key]
-	Data    []FileDescriptor[Key]
+	Data    []FileDescriptor[Key] // all files in this LSM tree.
 }
 
 func (l *FullLSMTree[Key]) Insert(k Key, v Value) error {
